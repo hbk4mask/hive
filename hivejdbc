@@ -1,0 +1,208 @@
+package hive;
+
+
+import java.io.InputStream;
+import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.ChannelExec;
+import com.jcraft.jsch.JSch;
+import com.jcraft.jsch.Session;
+public class HiveJdbc {
+
+
+
+	/**
+	 * @param args
+	 * @throws SQLException
+	 */
+	public List<String> hiveCommandInvoker(String sqlcommnad,int count,String cols) throws SQLException {
+		String driverName = "org.apache.hive.jdbc.HiveDriver";
+		System.out.println("********** inside hiveCommandInvoker");
+		List<String> hiveCommandOutput=new ArrayList<String>();
+		try {
+
+			System.out.println("entered try  ");
+			Class.forName(driverName);
+
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+
+			System.out.println("f***********8 ailed in try ");
+			e.printStackTrace();
+			System.exit(1);
+		}
+		//replace "hive" here with the name of the user the queries should run as
+		Connection con = DriverManager.getConnection("jdbc:hive2://192.168.154.131:10000/default", "root", "hbk4mask");
+		Statement stmt = con.createStatement();
+		// String tableName = "testHiveDriverTable";
+		// stmt.execute("drop table if exists " + tableName);
+		// stmt.execute("create table " + tableName + " (key int, value string)");
+		// show tables
+
+		// System.out.println("Running: " + sql);
+		//  = stmt.executeQuery(sql);
+		// if (res.next()) {
+		//   System.out.println(res.getString(1));
+		//  }
+		// describe table
+		System.out.println(" cols to be added "+cols);
+		String[] col=cols.split(",");
+		System.out.println("Running: " + sqlcommnad);
+		ResultSet res= stmt.executeQuery(sqlcommnad);
+		String valuesfetched="";
+
+		System.out.println("Xxxx   count "+count);
+		int c=0;
+		while (res.next()) {
+
+
+			for(int n=1;n<=count;n++)
+			{
+
+				System.out.println("res.getString(n "+n);
+				if(n==1||n%7==0)
+				{
+					valuesfetched=valuesfetched+col[c++];
+					valuesfetched=valuesfetched+",";
+					System.out.println("adding col "+valuesfetched);
+				}
+				valuesfetched=valuesfetched+res.getString(n);
+				System.out.println("adding val getString(n)"+res.getString(n));
+				if(n%6==0)
+				{
+					valuesfetched=valuesfetched+":";
+					System.out.println("adding : "+valuesfetched);
+				}
+				else
+				{
+					valuesfetched=valuesfetched+",";
+					System.out.println("adding , "+valuesfetched);
+				}	
+
+			}
+
+			System.out.println("valuesfetched  :  "+valuesfetched.substring(0,valuesfetched.length()-1));
+			hiveCommandOutput.add(valuesfetched.substring(0,valuesfetched.length()-1));
+			valuesfetched="";
+			//System.out.println(res.getString(1) + "\t" + res.getString(2));
+		}
+		return hiveCommandOutput;
+
+
+	}
+
+
+	public List<String> hiveDescribeCommandInvoker(String sqlcommnad,int count) throws SQLException {
+		String driverName = "org.apache.hive.jdbc.HiveDriver";
+		System.out.println("********** inside hiveCommandInvoker");
+		List<String> hiveCommandOutput=new ArrayList<String>();
+		try {
+
+			System.out.println("entered try  ");
+			Class.forName(driverName);
+
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+
+			System.out.println("f***********8 ailed in try ");
+			e.printStackTrace();
+			System.exit(1);
+		}
+		//replace "hive" here with the name of the user the queries should run as
+		Connection con = DriverManager.getConnection("jdbc:hive2://192.168.154.131:10000/default", "root", "hbk4mask");
+		Statement stmt = con.createStatement();
+		// String tableName = "testHiveDriverTable";
+		// stmt.execute("drop table if exists " + tableName);
+		// stmt.execute("create table " + tableName + " (key int, value string)");
+		// show tables
+
+		// System.out.println("Running: " + sql);
+		//  = stmt.executeQuery(sql);
+		// if (res.next()) {
+		//   System.out.println(res.getString(1));
+		//  }
+		// describe table
+
+		System.out.println("Running: " + sqlcommnad);
+		ResultSet res= stmt.executeQuery(sqlcommnad);
+		String valuesfetched="";
+
+		System.out.println("Xxxx   count "+count);
+
+		while (res.next()) {
+			hiveCommandOutput.add(res.getString(1) + "," + res.getString(2));
+			System.out.println(res.getString(1) + "," + res.getString(2));
+		}
+
+		return hiveCommandOutput;
+		//System.out.println(res.getString(1) + "\t" + res.getString(2));
+	}
+
+
+
+
+
+
+	public List<String> hdfsCommandInvoker(String command1) throws SQLException {
+
+		String host="192.168.154.131";
+		String user="root";
+		String password="hbk4mask";
+		//		String command1="hadoop fs -ls /apps/hive/warehouse";
+		System.out.println("command1 "+command1);
+
+
+		List<String> hdfsCommandOutput=new ArrayList<String>();
+		List<String> hivetableslist=new ArrayList<String>();
+		try{
+
+			java.util.Properties config = new java.util.Properties(); 
+			config.put("StrictHostKeyChecking", "no");
+			JSch jsch = new JSch();
+			Session session1=jsch.getSession(user, host, 22);
+			session1.setPassword(password);
+			session1.setConfig(config);
+			session1.connect();
+			System.out.println("Connected");
+
+			Channel channel=session1.openChannel("exec");
+			((ChannelExec)channel).setCommand(command1);
+			channel.setInputStream(null);
+			((ChannelExec)channel).setErrStream(System.err);
+
+			InputStream in=channel.getInputStream();
+			channel.connect();
+			byte[] tmp=new byte[1024];
+			while(true)
+			{
+				while(in.available()>0)
+				{
+					int i=in.read(tmp, 0, 1024);
+					if(i<0)break;
+					System.out.println("console output");
+					//System.out.print(new String(tmp, 0, i));
+
+					hdfsCommandOutput.add(new String(tmp, 0, i));
+				}
+				if(channel.isClosed()){
+					System.out.println("exit-status: "+channel.getExitStatus());
+					break;
+				}
+				try{Thread.sleep(1000);}catch(Exception ee){}
+			}
+			channel.disconnect();
+			session1.disconnect();
+			System.out.println("DONE");
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		return hdfsCommandOutput;
+	}
+}
